@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+# omaflake's palette – the one source of the brand's colours. generate.py draws the artwork with it; omaflake's design
+# tokens (omaflake/omaflake: brand/tokens.toml, [palette]) carry a copy: change a colour here, then there.
+[palette]
+background = "#121212"
+red = "#FF3B3B"
+cyan = "#00E5FF"
+yellow = "#F5FF3B"
+white = "#FFFFFF"
+black = "#000000"
