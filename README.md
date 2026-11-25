@@ -12,7 +12,7 @@ Two marks:
 Everything is generated: edit `generate.py` (the drawing) and `palette.toml` (the colours), not the exported files.
 
 ```sh
-python3 generate.py   # svg/, png/, web/, macos/, plymouth/ – needs Python 3.11+, rsvg-convert (Homebrew: librsvg), iconutil (macOS)
+python3 generate.py   # svg/, png/, web/, macos/, plymouth/, wallpapers/ – needs Python 3.11+, rsvg-convert (Homebrew: librsvg), iconutil (macOS)
 python3 copy.py       # copies into ../omaflake, ../website, ../catalog (checkouts next to this one)
 ```
 
@@ -33,6 +33,7 @@ also goes into omaflake's design tokens, `brand/tokens.toml` `[palette]`, which 
 | Square, edge-to-edge | `png/icon-square/omaflake-icon-square-*.png` |
 | Monochrome (stickers, print, single colour) | `svg/omaflake-glyph-black.svg`, `-white.svg`, `png/glyph/` |
 | Monochrome, tiny (16–48 px) | `svg/omaflake-glyph-small-black.svg`, `-white.svg`, `png/glyph-small/` |
+| Desktop wallpapers for the guests | `wallpapers/omaflake-<motif>-3840x2160.png` (16:9) and `-3840x2400.png` (16:10); motifs: `glitch` (the hero, big, with pixels and shifted slices), `snowfall` (flakes near and far), `split` (the three colours as huge outlines), `quiet` (a faint ghost of the hero), `mono` (the hero alone in greys on pure black); sources in `svg/wallpapers/` |
 | NixOS guests' loading screen | `plymouth/` (the Plymouth theme's images and `layout.script`) and `png/loading/omaflake-loading.png` (its first frame, which QEMU's window shows until the guest draws); sources in `svg/loading/` |
 
 Website head:
@@ -81,7 +82,7 @@ accents.
 | Files | Licence |
 |---|---|
 | `generate.py`, `copy.py`, `palette.toml`, this README | [MIT](LICENSES/MIT.txt) |
-| the artwork: `svg/`, `png/`, `web/`, `macos/`, `plymouth/` | [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt) |
+| the artwork: `svg/`, `png/`, `web/`, `macos/`, `plymouth/`, `wallpapers/` | [CC BY-ND 4.0](LICENSES/CC-BY-ND-4.0.txt) |
 
 The artwork may be copied and passed on – also in apps distributed through app stores and in other software – as it
 is and naming falkOSS; changed versions may not be passed on. The licence covers the artwork's copyright, not the

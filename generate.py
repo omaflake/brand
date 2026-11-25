@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Generates the omaflake brand kit: master SVGs, PNG exports, .icns, favicon.ico, the web head files and the NixOS
-guests' loading screen (plymouth/). copy.py copies what the other repositories use into their checkouts.
+"""Generates the omaflake brand kit: master SVGs, PNG exports, .icns, favicon.ico, the web head files, the NixOS
+guests' loading screen (plymouth/) and desktop wallpapers for the guests (wallpapers/). copy.py copies what the other repositories use into their checkouts.
 
 Needs Python 3.11+ (tomllib), rsvg-convert (Homebrew: librsvg) and iconutil (macOS). Run from anywhere:
     python3 generate.py
@@ -257,6 +257,138 @@ def loading_screen(theme, qemu_png):
           "layout.split_x = 16 / 724;\nlayout.split_y = 6 / 724;\n")
 
 
+# --- desktop wallpapers for the guests -------------------------------------------------------
+#
+# Five motifs, each in 16:9 and 16:10. Laid out in units of the screen's height (u = 1/1080 of H) and fractions of
+# its width, so both shapes show the same picture. Flat shapes only – no gradients or blur – so the PNGs stay small.
+
+WALL_SIZES = ((3840, 2160), (3840, 2400))
+
+
+def placed(body, cx, cy, size):
+    """body drawn in the 1024 space, its flake (MARK_BOX, 724 units wide) centred at cx, cy and size px wide."""
+    return f'<g transform="translate({cx:.1f} {cy:.1f}) scale({size / 724:.5f}) translate(-512 -512)">{body}</g>'
+
+
+def wall_pixels(rnd, w, h, n, keep_out=None, opacity=(0.25, 0.45, 0.7)):
+    """Scattered pixels; keep_out = (cx, cy, rx, ry), an ellipse left empty."""
+    u, out = h / 1080, []
+    while len(out) < n:
+        x, y = rnd.uniform(0, w), rnd.uniform(0, h)
+        if keep_out and ((x - keep_out[0]) / keep_out[2]) ** 2 + ((y - keep_out[1]) / keep_out[3]) ** 2 < 1:
+            continue
+        out.append(f'<rect x="{x:.0f}" y="{y:.0f}" width="{rnd.choice([8, 14, 20]) * u:.0f}" '
+                   f'height="{rnd.choice([8, 14]) * u:.0f}" fill="{rnd.choice([RED, CYAN, WHITE, YELLOW])}" '
+                   f'opacity="{rnd.choice(opacity)}"/>')
+    return "".join(out)
+
+
+def wall_glitch(w, h):
+    """The hero, big and centred, with slices of it pushed sideways and pixels all over the screen."""
+    rnd, u = random.Random(31), h / 1080
+    cx, cy, size = w / 2, h / 2, 0.66 * h
+    s = size / 724
+    hero = placed(hero_flake("h-"), cx, cy, size)
+    # Slices: a strip of the screen showing the flake again, shifted – the hero's bands, writ large
+    slices, clips = "", ""
+    for i, (y0, hh, dx) in enumerate([(-0.20, 0.035, 46), (0.09, 0.012, -54), (0.17, 0.05, 30)]):
+        clips += f'<clipPath id="s{i}"><rect x="0" y="{cy + y0 * h:.0f}" width="{w}" height="{hh * h:.0f}"/></clipPath>'
+        slices += (f'<g clip-path="url(#s{i})"><rect x="0" y="{cy + y0 * h:.0f}" width="{w}" height="{hh * h:.0f}" '
+                   f'fill="{BG}"/><g transform="translate({dx * u:.0f} 0)">{hero}</g></g>')
+    lines = "".join(f'<rect x="{x * w:.0f}" y="{y * h:.0f}" width="{l * w:.0f}" height="{t * u:.0f}" fill="{c}" '
+                    f'opacity="{o}"/>' for x, y, l, t, c, o in
+                    [(0.00, 0.21, 0.31, 4, CYAN, 0.6), (0.66, 0.36, 0.34, 3, RED, 0.6), (0.08, 0.74, 0.22, 6, RED, 0.45),
+                     (0.71, 0.81, 0.29, 4, CYAN, 0.5), (0.40, 0.93, 0.20, 2, WHITE, 0.3)])
+    minis = "".join(placed(f'<use href="#h-flake" stroke="{c}" transform="rotate({r} 512 512)" opacity="0.7"/>',
+                           x * w, y * h, z * h)
+                    for x, y, z, r, c in [(0.12, 0.16, 0.11, 20, YELLOW), (0.86, 0.20, 0.08, -12, CYAN),
+                                          (0.16, 0.82, 0.09, 33, RED), (0.83, 0.78, 0.07, 5, WHITE),
+                                          (0.70, 0.09, 0.05, 40, RED), (0.30, 0.55, 0.04, 12, CYAN)])
+    pixels = wall_pixels(rnd, w, h, 260, (cx, cy, 0.42 * h, 0.42 * h))
+    return (f'<defs>{hero_defs("h-")}{clips}</defs><rect width="{w}" height="{h}" fill="{BG}"/>'
+            f'{lines}{pixels}{minis}{hero}{slices}')
+
+
+def wall_snowfall(w, h):
+    """Flakes of every size: small and dim far away, big and RGB-split up close."""
+    rnd = random.Random(41)
+    size_of = lambda z: (0.025 + 0.20 * z ** 2) * h
+    flakes, big = [], []
+    while len(flakes) < int(80 * w / h):
+        z = rnd.random() ** 1.8                     # most of them far away
+        x, y = rnd.uniform(-0.03, 1.03) * w, rnd.uniform(-0.05, 1.05) * h
+        if z > 0.5:                                 # the near ones do not overlap each other
+            if any((x - bx) ** 2 + (y - by) ** 2 < (0.55 * (size_of(z) + bs)) ** 2 for bx, by, bs in big):
+                continue
+            big.append((x, y, size_of(z)))
+        flakes.append((z, x, y, rnd.uniform(0, 60)))
+    out = []
+    for z, x, y, r in sorted(flakes):
+        size = size_of(z)
+        if z > 0.78:                                # close: the hero's split
+            body = (f'<g transform="rotate({r} 512 512)"><use href="#h-flake" stroke="{RED}" transform="translate(-16 6)" '
+                    f'opacity="0.85"/><use href="#h-flake" stroke="{CYAN}" transform="translate(16 -6)" opacity="0.85"/>'
+                    f'<use href="#h-flake" stroke="{WHITE}"/></g>')
+        else:
+            c = rnd.choices([WHITE, CYAN, RED, YELLOW], [6, 2, 2, 1])[0]
+            body = (f'<use href="#h-flake" stroke="{c}" transform="rotate({r} 512 512)" '
+                    f'opacity="{0.18 + 0.6 * z:.2f}"/>')
+        out.append(placed(body, x, y, size))
+    pixels = wall_pixels(rnd, w, h, 90, opacity=(0.15, 0.3, 0.45))
+    return f'<defs>{hero_defs("h-")}</defs><rect width="{w}" height="{h}" fill="{BG}"/>{pixels}{"".join(out)}'
+
+
+def wall_split(w, h):
+    """The hero's three colours as huge outlines, pulled apart and cut by the bands across the whole screen."""
+    cx, cy, size = 0.60 * w, 0.52 * h, 1.55 * h
+    dx, dy = 0.022 * h, 0.008 * h
+    arm = (f'<g id="w-arm" fill="none" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">{ARM}</g>'
+           f'<g id="w-flake" transform="rotate({TILT} 512 512)">{six("w-arm")}</g>')
+    bands = (f'<mask id="w-bands" maskUnits="userSpaceOnUse" x="0" y="0" width="{w}" height="{h}">'
+             f'<rect width="{w}" height="{h}" fill="#fff"/>'
+             + "".join(f'<rect x="0" y="{y * h:.0f}" width="{w}" height="{t * h:.0f}" fill="#000"/>'
+                       for y, t in [(0.29, 0.012), (0.47, 0.028), (0.66, 0.009), (0.81, 0.02)]) + '</mask>')
+    layers = "".join(
+        placed(f'<use href="#w-flake" stroke="{c}" opacity="{o}" style="mix-blend-mode:screen"/>', cx + ox, cy + oy, size)
+        for c, ox, oy, o in [(RED, -dx, dy, 0.9), (CYAN, dx, -dy, 0.9), (WHITE, 0, 0, 1)])
+    return (f'<defs>{arm}{bands}</defs><rect width="{w}" height="{h}" fill="{BG}"/>'
+            f'<g mask="url(#w-bands)" style="isolation:isolate">{layers}</g>')
+
+
+def wall_quiet(w, h):
+    """Nearly empty: a faint ghost of the hero to the right, for working without distraction."""
+    cx, cy, size = 0.70 * w, 0.56 * h, 1.25 * h
+    t = f"rotate({TILT} 512 512)"
+    ghost = (f'<g mask="url(#h-bands)">'
+             f'<use href="#h-flake" stroke="{RED}" transform="translate(-16 6) {t}" opacity="0.07"/>'
+             f'<use href="#h-flake" stroke="{CYAN}" transform="translate(16 -6) {t}" opacity="0.07"/>'
+             f'<use href="#h-flake" stroke="{WHITE}" transform="{t}" opacity="0.06"/></g>')
+    return f'<defs>{hero_defs("h-")}</defs><rect width="{w}" height="{h}" fill="{BG}"/>{placed(ghost, cx, cy, size)}'
+
+
+def wall_mono(w, h):
+    """Subdued, greyscale on pure black: the hero alone, centred, its split in greys, no pixels or small flakes."""
+    t = f"rotate({TILT} 512 512)"
+    flake = (f'<g mask="url(#h-bands)">'
+             f'<use href="#h-flake" stroke="#2E2E2E" transform="translate(-16 6) {t}"/>'
+             f'<use href="#h-flake" stroke="#4A4A4A" transform="translate(16 -6) {t}"/>'
+             f'<use href="#h-flake" stroke="#8C8C8C" transform="{t}"/></g>')
+    return (f'<defs>{hero_defs("h-")}</defs><rect width="{w}" height="{h}" fill="#000000"/>'
+            + placed(flake, w / 2, h / 2, 0.42 * h))
+
+
+WALLPAPERS = {"glitch": wall_glitch, "snowfall": wall_snowfall, "split": wall_split, "quiet": wall_quiet, "mono": wall_mono}
+
+
+def wallpapers():
+    """Writes svg/wallpapers/ (the masters) and wallpapers/ (the PNGs the guests use)."""
+    for name, draw in WALLPAPERS.items():
+        for w, h in WALL_SIZES:
+            src = os.path.join(SVG, "wallpapers", f"omaflake-{name}-{w}x{h}.svg")
+            write(src, svg(f"0 0 {w} {h}", draw(w, h), w))
+            render(src, os.path.join(HERE, "wallpapers", f"omaflake-{name}-{w}x{h}.png"), w, h)
+
+
 # --- export ----------------------------------------------------------------------------------
 
 def write(path, content):
@@ -316,6 +448,7 @@ def main():
     # The NixOS guests' loading screen: the Plymouth theme's images (plymouth/, omaflake's nix/modules/plymouth/) and
     # the image QEMU shows until the guest draws it (png/loading/, embedded in omaf)
     loading_screen(os.path.join(HERE, "plymouth"), f"{PNG}/loading/omaflake-loading.png")
+    wallpapers()
     for scale, suffix in ((1, ""), (2, "@2x"), (3, "@3x")):
         render(s("omaflake-menubarTemplate.svg"), f"{PNG}/menubar/omaflakeTemplate{suffix}.png", 18 * scale)
 
