@@ -19,6 +19,13 @@ COPIES = [
     ("omaflake", "png/glyph-small/omaflake-glyph-small-white-48.png", "brand/png/glyph-small"),
     ("omaflake", "png/menubar/*.png", "brand/png/menubar"),
     ("omaflake", "png/loading/omaflake-loading.png", "brand/png/loading"),
+    # omaflake-core and omaflake-gui embed these; a crate's package carries only its own folder (omaflake plan B192)
+    ("omaflake", "png/icon/omaflake-icon-512.png", "crates/omaflake-core/assets"),
+    ("omaflake", "png/loading/omaflake-loading.png", "crates/omaflake-core/assets"),
+    ("omaflake", "png/icon/omaflake-icon-32.png", "crates/omaflake-gui/assets"),
+    ("omaflake", "png/icon/omaflake-icon-64.png", "crates/omaflake-gui/assets"),
+    ("omaflake", "png/icon/omaflake-icon-128.png", "crates/omaflake-gui/assets"),
+    ("omaflake", "png/glyph-small/omaflake-glyph-small-white-48.png", "crates/omaflake-gui/assets"),
     ("omaflake", "png/social/omaflake-social-1280x640.png", "brand/png/social"),
     ("omaflake", "plymouth/*", "nix/modules/plymouth"),
     ("omaflake", "web/favicon.ico", "docs/assets"),
