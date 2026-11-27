@@ -23,7 +23,8 @@ also goes into omaflake's design tokens, `brand/tokens.toml` `[palette]`, which 
 
 | Use | File |
 |---|---|
-| macOS app icon | `macos/omaflake.icns` (16/32 px slots: small glyph on the icon background) |
+| macOS app icon | `macos/omaflake.icns` (16/32 px slots: small glyph on the icon background) – for whatever reads only `CFBundleIconFile` |
+| macOS app icon, Liquid Glass (macOS 26+) | `macos/omaflake.icon` – an Icon Composer document: layers in `Assets/` (the flake as glass, its red/cyan split and the noise apart from the background), `icon.json` (background `#121212`, pure black when dark; split and noise hidden when tinted). Open it in Icon Composer to look at every appearance; omaflake's bundle scripts compile it with `actool` (Xcode) |
 | Menu bar (template image, macOS tints it) | `png/menubar/omaflakeTemplate.png`, `@2x`, `@3x` or `svg/omaflake-menubarTemplate.svg` |
 | GitHub organisation avatar | `png/social/github-avatar-500.png` |
 | GitHub social preview (repository settings), link previews | `png/social/omaflake-social-1280x640.png` |
@@ -51,7 +52,7 @@ Website head:
 
 | Repository | Copies |
 |---|---|
-| `omaflake/omaflake` | `brand/` (icns, icons, menu bar, small glyph, loading frame, social preview), `nix/modules/plymouth/`, `docs/assets/` (favicons, mark on dark) |
+| `omaflake/omaflake` | `brand/` (icns, the Liquid Glass `.icon`, icons, menu bar, small glyph, loading frame, social preview), `nix/modules/plymouth/`, `docs/assets/` (favicons, mark on dark) |
 | `omaflake/website` | `web/` (root), `assets/` (mark on dark 512, `og.png` = the social preview) |
 | `omaflake/catalog` | `modules/omaflake/macos/omaflake-dev/omaflake-test.icns` (the icns) |
 | `omaflake/.github` | the profile banner `profile/assets/omaflake-banner.png` – not generated here (OPEN: move its source here) |

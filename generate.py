@@ -6,7 +6,7 @@ guests' loading screen (plymouth/) and desktop wallpapers for the guests (wallpa
 Needs Python 3.11+ (tomllib), rsvg-convert (Homebrew: librsvg) and iconutil (macOS). Run from anywhere:
     python3 generate.py
 """
-import os, random, shutil, struct, subprocess, tomllib
+import json, os, random, shutil, struct, subprocess, tomllib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SVG, PNG = os.path.join(HERE, "svg"), os.path.join(HERE, "png")
@@ -138,6 +138,69 @@ def favicon():
     return svg(SMALL_BOX,
                f'<style>.f{{color:{BG}}} @media (prefers-color-scheme: dark){{.f{{color:{WHITE}}}}}</style>'
                f'<g class="f">{small_body("f-", "currentColor")}</g>', 32)
+
+
+# --- Liquid Glass app icon (macOS 26+): an Icon Composer document, macos/omaflake.icon --------------------------
+#
+# The format as Xcode 27.2 writes and reads it (its Icon Composer template, the keys in IconComposerFoundation; actool
+# and Icon Composer's ictool both accept this document): a folder with icon.json and Assets/ holding the layers' images.
+# The system draws the rounded square, the glass and the variants; the document gives it the background (a fill, no
+# image) and the foreground in groups – groups[0] is drawn on top. Each layer is the whole 1024 canvas, edge to edge
+# (the square's box is fullbleed()'s), transparent outside the artwork.
+#   flake – the hero's white core, the glass layer
+#   split – its red and cyan offset copies (hidden when tinted: a tinted icon is one colour)
+#   noise – the pixels and small flakes (hidden when tinted)
+# The background is the icon background, pure black in the dark appearance.
+
+GLASS_BOX = "100 100 824 824"
+
+
+def glass_layer(body):
+    return svg(GLASS_BOX, f'<defs>{hero_defs("h-")}</defs>{body}', 1024)
+
+
+def glass_layers():
+    t = f"rotate({TILT} 512 512)"
+    one = lambda colour, move="": (f'<g mask="url(#h-bands)"><use href="#h-flake" stroke="{colour}" '
+                                   f'transform="{move}{t}"/></g>')
+    return {"flake.svg": glass_layer(one(WHITE)),
+            "split-red.svg": glass_layer(one(RED, "translate(-16 6) ")),
+            "split-cyan.svg": glass_layer(one(CYAN, "translate(16 -6) ")),
+            "noise.svg": glass_layer(hero_noise("h-"))}
+
+
+def srgb(colour):
+    h = colour.lstrip("#")
+    return "srgb:" + ",".join(f"{int(h[i:i + 2], 16) / 255:.5f}" for i in (0, 2, 4)) + ",1.00000"
+
+
+def glass_document():
+    hidden_when_tinted = [{"appearance": "tinted", "value": True}]
+    return {
+        "fill-specializations": [{"value": {"solid": srgb(BG)}},
+                                 {"appearance": "dark", "value": {"solid": srgb(_P["black"])}}],
+        "groups": [
+            {"name": "flake", "layers": [{"name": "flake", "image-name": "flake.svg", "glass": True}],
+             "shadow": {"kind": "neutral", "opacity": 0.5}, "translucency": {"enabled": True, "value": 0.4}},
+            {"name": "split", "layers": [{"name": "cyan", "image-name": "split-cyan.svg", "opacity": 0.85},
+                                         {"name": "red", "image-name": "split-red.svg", "opacity": 0.85}],
+             "hidden-specializations": hidden_when_tinted},
+            {"name": "noise", "layers": [{"name": "noise", "image-name": "noise.svg"}],
+             "hidden-specializations": hidden_when_tinted},
+        ],
+        "supported-platforms": {"squares": ["macOS"]},
+    }
+
+
+def liquid_glass(folder):
+    """Writes the Icon Composer document (folder = …/omaflake.icon)."""
+    assets = os.path.join(folder, "Assets")
+    layers = glass_layers()
+    for name, content in layers.items():
+        write(os.path.join(assets, name), content)
+    for name in sorted(set(os.listdir(assets)) - set(layers)):
+        print(f"note: {os.path.relpath(os.path.join(assets, name), HERE)} is no layer any more – remove it from git")
+    write(os.path.join(folder, "icon.json"), json.dumps(glass_document(), indent=2) + "\n")
 
 
 def app_icon_small():
@@ -479,6 +542,9 @@ def main():
             src = "omaflake-icon-small.svg" if px <= 32 else "omaflake-icon.svg"
             render(s(src), f"{iconset}/icon_{base}x{base}{'@2x' if scale == 2 else ''}.png", px)
     subprocess.run(["iconutil", "-c", "icns", iconset, "-o", os.path.join(HERE, "macos", "omaflake.icns")], check=True)
+    # The same icon in Liquid Glass (macOS 26+): omaflake's bundle scripts compile it with actool; the .icns stays for
+    # whatever reads only CFBundleIconFile
+    liquid_glass(os.path.join(HERE, "macos", "omaflake.icon"))
     print("ok – now python3 copy.py")
 
 

@@ -14,6 +14,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # (repository, source in this repository – a glob –, target folder in that repository)
 COPIES = [
     ("omaflake", "macos/omaflake.icns", "brand/macos"),
+    ("omaflake", "macos/omaflake.icon/icon.json", "brand/macos/omaflake.icon/icon.json"),
+    ("omaflake", "macos/omaflake.icon/Assets/*.svg", "brand/macos/omaflake.icon/Assets"),
     ("omaflake", "png/icon/*.png", "brand/png/icon"),
     ("omaflake", "svg/omaflake-icon.svg", "brand/svg"),
     ("omaflake", "png/glyph-small/omaflake-glyph-small-white-48.png", "brand/png/glyph-small"),
